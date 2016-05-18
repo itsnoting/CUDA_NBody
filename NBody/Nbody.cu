@@ -25,18 +25,21 @@ __device__ float cube(float num){
 	return powf(num, 3);
 }
 
-__global__ void myprint(){
+__global__ void random(int* num){
+	curandState_t state;
+	curand_init(0, 0, 0, &state);
+	*num = curand(&state) % 10;
 	return;
 }
 
 __global__ void initialize(float *pos_x, float* pos_y, float* masses, float* velocities_x, float* velocities_y){
 	curandState_t state;
-	curand_init(0, 0, 0, &state);
-	pos_x[threadIdx.x] = float(curand(&state) % 101 + (-50));
-	pos_y[threadIdx.x] = float(curand(&state) % 101 + (-50));
-	velocities_x[threadIdx.x] = float(curand(&state) % 11 + (-5)) / 1000.0;
-	velocities_y[threadIdx.x] = float(curand(&state) % 11 + (-5)) / 1000.0;
-	masses[threadIdx.x] = float(curand(&state) % 10000);
+	curand_init(2, 0, 0, &state);
+	pos_x[threadIdx.x] = curand(&state) % 101 + (-50);
+	pos_y[threadIdx.x] = curand(&state) % 101 + (-50);
+	velocities_x[threadIdx.x] = curand(&state) % 11 + (-5) / 1000.0;
+	velocities_y[threadIdx.x] = curand(&state) % 11 + (-5) / 1000.0;
+	masses[threadIdx.x] = curand(&state);
 }
 __global__ void updateVelocities(float *masses, float* velocities_x, float* velocities_y, float* pos_x, float* pos_y)
 {
@@ -50,13 +53,14 @@ __global__ void updateVelocities(float *masses, float* velocities_x, float* velo
 }
 __global__ void updatePositions(float *pos_x, float *pos_y, float* velocities_x, float* velocities_y){
 	if (threadIdx.x < PARTICLE_COUNT){
+		printf("%d + %d = ", pos_x[threadIdx.x], velocities_x[threadIdx.x], pos_x[threadIdx.x] + velocities_x[threadIdx.x]);
 		pos_x[threadIdx.x] += velocities_x[threadIdx.x];
 		pos_y[threadIdx.x] += velocities_y[threadIdx.x];
 	}
 }
 
 int main() {
-	srand(1);
+
 	dim3 threadsperblock(PARTICLE_COUNT, PARTICLE_COUNT);
 	// Initialize the host variables
 	float ih_pos_x[PARTICLE_COUNT];
@@ -88,26 +92,34 @@ int main() {
 		cout << "Error: Allocating memory" << endl;
 		return 1;
 	}
-	initialize<<<PARTICLE_COUNT / 256 + 1, 256>>>(d_pos_x, d_pos_y, d_masses, d_velocities_x, d_velocities_y);
-	cudaMemcpy(ih_pos_x, d_pos_x, sizeof(float) * PARTICLE_COUNT, cudaMemcpyDeviceToHost);
-	cudaMemcpy(ih_pos_y, d_pos_y, sizeof(float) * PARTICLE_COUNT, cudaMemcpyDeviceToHost);
-	cudaMemcpy(d_masses, h_masses, sizeof(float) * PARTICLE_COUNT, cudaMemcpyDeviceToHost);
 
-	for (int i = 0; i < TIMESTEPS; ++i){
+	//initialize<<<PARTICLE_COUNT / 256 + 1, 256>>>(d_pos_x, d_pos_y, d_masses, d_velocities_x, d_velocities_y);
+	srand(1);
+	for (int i = 0; i < PARTICLE_COUNT; ++i){
+		ih_pos_x[i] = (rand() % 101) - 50;
+		ih_pos_y[i] = (rand() % 101) - 50;
+		h_masses[i] = rand() % 1000;
+	}
+	
+	cudaMemcpy(d_pos_x, ih_pos_x, sizeof(float) * PARTICLE_COUNT, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_pos_y, ih_pos_y, sizeof(float) * PARTICLE_COUNT, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_masses, h_masses, sizeof(float) * PARTICLE_COUNT, cudaMemcpyHostToDevice);
+	
+	/*for (int i = 0; i < TIMESTEPS; ++i){
 		updateVelocities<<<PARTICLE_COUNT / 256 + 1, threadsperblock>>>(d_pos_x, d_pos_y, d_masses, d_velocities_x, d_velocities_y);
 		updatePositions<<<PARTICLE_COUNT / 256 + 1, 256 >>>(d_pos_x, d_pos_y, d_velocities_x, d_velocities_y);
-	}
+	}*/
 	cudaMemcpy(fh_pos_x, d_pos_x, sizeof(float) * PARTICLE_COUNT, cudaMemcpyDeviceToHost);
 	cudaMemcpy(fh_pos_y, d_pos_y, sizeof(float) * PARTICLE_COUNT, cudaMemcpyDeviceToHost);
 	
 	cout << "INITIAL POSITIONS" << endl;
 	
 	for (int i = 0; i < PARTICLE_COUNT; ++i){
-		cout << i << ":\t" << h_masses[i] << "\t" << ih_pos_x[i] << ", " << ih_pos_y[i] << endl;
+		cout << i << ":\t" << h_masses[i] << "\t\t\t" << ih_pos_x[i] << ", " << ih_pos_y[i] << endl;
 	}
 	cout << "FINAL POSITIONS" << endl;
 	for (int j = 0; j < PARTICLE_COUNT; ++j){
-		cout << j << ":\t" << h_masses[j] << "\t" << ih_pos_x[j] << ", " << ih_pos_y[j] << endl;
+		cout << j << ":\t" << h_masses[j] << "\t\t\t" << fh_pos_x[j] << ", " << fh_pos_y[j] << endl;
 	}
 	getchar();
 
