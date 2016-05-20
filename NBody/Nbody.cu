@@ -74,7 +74,8 @@ int main() {
 	float* h_velocities_x = (float*)malloc(PARTICLE_COUNT * sizeof(float));
 	float* h_velocities_y = (float*)malloc(PARTICLE_COUNT * sizeof(float));
 	float* h_masses = (float*)malloc(PARTICLE_COUNT * sizeof(float));
-	
+	float* jh_pos_x = (float*)malloc(PARTICLE_COUNT * sizeof(float));
+	float* jh_pos_y = (float*)malloc(PARTICLE_COUNT * sizeof(float));
 	// Initialize the device variables
 	float* d_pos_x;
 	float* d_pos_y;
@@ -112,6 +113,9 @@ int main() {
 	cudaMemcpy(d_pos_x, ih_pos_x, sizeof(float) * PARTICLE_COUNT, cudaMemcpyHostToDevice);
 	cudaMemcpy(d_pos_y, ih_pos_y, sizeof(float) * PARTICLE_COUNT, cudaMemcpyHostToDevice);
 
+	cudaMemcpy(jh_pos_x, d_pos_x, sizeof(float) * PARTICLE_COUNT, cudaMemcpyDeviceToHost);
+	cudaMemcpy(jh_pos_y, d_pos_y, sizeof(float) * PARTICLE_COUNT, cudaMemcpyDeviceToHost);
+
 	cudaMemcpy(d_masses, h_masses, sizeof(float) * PARTICLE_COUNT, cudaMemcpyHostToDevice);
 	cudaMemcpy(d_velocities_x, h_velocities_x, sizeof(float) * PARTICLE_COUNT, cudaMemcpyHostToDevice);
 	cudaMemcpy(d_velocities_y, h_velocities_y, sizeof(float) * PARTICLE_COUNT, cudaMemcpyHostToDevice);
@@ -126,7 +130,7 @@ int main() {
 	cout << "INITIAL POSITIONS" << endl;
 	
 	for (int i = 0; i < PARTICLE_COUNT; ++i){
-		cout << i << ":\t" << h_masses[i] << "\t\t\t" << ih_pos_x[i] << ", " << ih_pos_y[i] << endl;
+		cout << i << ":\t" << h_masses[i] << "\t\t\t" << jh_pos_x[i] << ", " << jh_pos_y[i] << endl;
 	}
 	cout << "FINAL POSITIONS" << endl;
 	for (int j = 0; j < PARTICLE_COUNT; ++j){
