@@ -49,6 +49,7 @@ __global__ void updateVelocities(float *masses, float* velocities_x, float* velo
 	float dist_cubed = cube(qkdistance);
 	float x_diff = pos_x[q] - pos_x[k];
 	float y_diff = pos_y[q] - pos_y[k];
+	printf("Distance between: (%f, %f) and (%f, %f) is %f\n", pos_x[q], pos_y[q], pos_x[k], pos_y[k], qkdistance);
 	if (q != k && q < PARTICLE_COUNT && k < PARTICLE_COUNT){
 		velocities_x[q] -= (G * masses[q] * masses[k]) / dist_cubed * x_diff;
 		velocities_y[q] -= (G * masses[q] * masses[k]) / dist_cubed * y_diff;
@@ -75,13 +76,13 @@ int main() {
 	float* h_masses = (float*)malloc(PARTICLE_COUNT * sizeof(float));
 	
 	// Initialize the device variables
-	float* d_pos_x = (float*)malloc(PARTICLE_COUNT * sizeof(float));
-	float* d_pos_y = (float*)malloc(PARTICLE_COUNT * sizeof(float));
-	float* d_masses = (float*)malloc(PARTICLE_COUNT * sizeof(float));
-	float* d_velocities_x = (float*)malloc(PARTICLE_COUNT * sizeof(float));
-	float* d_velocities_y = (float*)malloc(PARTICLE_COUNT * sizeof(float));
-	float* d_distances_x = (float*)malloc(PARTICLE_COUNT * sizeof(float));
-	float* d_distances_y = (float*)malloc(PARTICLE_COUNT * sizeof(float));
+	float* d_pos_x;
+	float* d_pos_y;
+	float* d_masses;
+	float* d_velocities_x;
+	float* d_velocities_y;
+	float* d_distances_x;
+	float* d_distances_y;
 
 	if ( 
 		(cudaMalloc((void**)&d_pos_x, sizeof(float) * PARTICLE_COUNT) != cudaSuccess) ||
@@ -111,16 +112,13 @@ int main() {
 	cudaMemcpy(d_pos_x, ih_pos_x, sizeof(float) * PARTICLE_COUNT, cudaMemcpyHostToDevice);
 	cudaMemcpy(d_pos_y, ih_pos_y, sizeof(float) * PARTICLE_COUNT, cudaMemcpyHostToDevice);
 
-	cudaMemcpy(ih_pos_x, d_pos_x, sizeof(float) * PARTICLE_COUNT, cudaMemcpyDeviceToHost);
-	cudaMemcpy(ih_pos_y, d_pos_y, sizeof(float) * PARTICLE_COUNT, cudaMemcpyDeviceToHost);
-
 	cudaMemcpy(d_masses, h_masses, sizeof(float) * PARTICLE_COUNT, cudaMemcpyHostToDevice);
 	cudaMemcpy(d_velocities_x, h_velocities_x, sizeof(float) * PARTICLE_COUNT, cudaMemcpyHostToDevice);
 	cudaMemcpy(d_velocities_y, h_velocities_y, sizeof(float) * PARTICLE_COUNT, cudaMemcpyHostToDevice);
 
 	for (int i = 0; i < TIMESTEPS; ++i){
 		updateVelocities<<<PARTICLE_COUNT / 256 + 1, threadsperblock>>>(d_pos_x, d_pos_y, d_masses, d_velocities_x, d_velocities_y);
-		updatePositions<<<PARTICLE_COUNT / 256 + 1, 256 >>>(d_pos_x, d_pos_y, d_velocities_x, d_velocities_y);
+		//updatePositions<<<PARTICLE_COUNT / 256 + 1, 256>>>(d_pos_x, d_pos_y, d_velocities_x, d_velocities_y);
 	}
 	cudaMemcpy(fh_pos_x, d_pos_x, sizeof(float) * PARTICLE_COUNT, cudaMemcpyDeviceToHost);
 	cudaMemcpy(fh_pos_y, d_pos_y, sizeof(float) * PARTICLE_COUNT, cudaMemcpyDeviceToHost);
