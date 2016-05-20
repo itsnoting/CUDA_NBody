@@ -8,7 +8,7 @@
 #include <ctime>
 #include <cmath>
 
-#define TIMESTEPS 100
+#define TIMESTEPS 1000
 #define PARTICLE_COUNT 10
 #define DIM 2
 #define G 6.673 * powf(10, -11)
@@ -56,7 +56,7 @@ __global__ void updateVelocities(float *masses, float* velocities_x, float* velo
 		return;
 	}
 }
-__global__ void updatePositions(float *pos_x, float *pos_y, float* velocities_x, float* velocities_y){
+__global__ void updatePositions(float* velocities_x, float* velocities_y, float *pos_x, float *pos_y){
 	if (threadIdx.x < PARTICLE_COUNT){
 		pos_x[threadIdx.x] += velocities_x[threadIdx.x];
 		pos_y[threadIdx.x] += velocities_y[threadIdx.x];
@@ -121,8 +121,8 @@ int main() {
 	cudaMemcpy(d_velocities_y, h_velocities_y, sizeof(float) * PARTICLE_COUNT, cudaMemcpyHostToDevice);
 
 	for (int i = 0; i < TIMESTEPS; ++i){
-		updateVelocities<<<PARTICLE_COUNT / 256 + 1, threadsperblock>>>(d_pos_x, d_pos_y, d_masses, d_velocities_x, d_velocities_y);
-		//updatePositions<<<PARTICLE_COUNT / 256 + 1, 256>>>(d_pos_x, d_pos_y, d_velocities_x, d_velocities_y);
+		updateVelocities << <PARTICLE_COUNT / 256 + 1, threadsperblock >> >(d_masses, d_velocities_x, d_velocities_y, d_pos_x, d_pos_y);
+		updatePositions << <PARTICLE_COUNT / 256 + 1, 256 >> >(d_velocities_x, d_velocities_y, d_pos_x, d_pos_y);
 	}
 	cudaMemcpy(fh_pos_x, d_pos_x, sizeof(float) * PARTICLE_COUNT, cudaMemcpyDeviceToHost);
 	cudaMemcpy(fh_pos_y, d_pos_y, sizeof(float) * PARTICLE_COUNT, cudaMemcpyDeviceToHost);
@@ -130,7 +130,7 @@ int main() {
 	cout << "INITIAL POSITIONS" << endl;
 	
 	for (int i = 0; i < PARTICLE_COUNT; ++i){
-		cout << i << ":\t" << h_masses[i] << "\t\t\t" << jh_pos_x[i] << ", " << jh_pos_y[i] << endl;
+		cout << i << ":\t" << h_masses[i] << "\t\t\t" << ih_pos_x[i] << ", " << ih_pos_y[i] << endl;
 	}
 	cout << "FINAL POSITIONS" << endl;
 	for (int j = 0; j < PARTICLE_COUNT; ++j){
